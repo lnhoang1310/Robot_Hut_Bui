@@ -1,0 +1,28 @@
+--cpu Cortex-M3
+"robot_hut_bui\startup_stm32f103xb.o"
+"robot_hut_bui\main.o"
+"robot_hut_bui\stm32f1xx_it.o"
+"robot_hut_bui\stm32f1xx_hal_msp.o"
+"robot_hut_bui\stm32f1xx_hal_gpio_ex.o"
+"robot_hut_bui\stm32f1xx_hal_tim.o"
+"robot_hut_bui\stm32f1xx_hal_tim_ex.o"
+"robot_hut_bui\stm32f1xx_hal.o"
+"robot_hut_bui\stm32f1xx_hal_rcc.o"
+"robot_hut_bui\stm32f1xx_hal_rcc_ex.o"
+"robot_hut_bui\stm32f1xx_hal_gpio.o"
+"robot_hut_bui\stm32f1xx_hal_dma.o"
+"robot_hut_bui\stm32f1xx_hal_cortex.o"
+"robot_hut_bui\stm32f1xx_hal_pwr.o"
+"robot_hut_bui\stm32f1xx_hal_flash.o"
+"robot_hut_bui\stm32f1xx_hal_flash_ex.o"
+"robot_hut_bui\stm32f1xx_hal_exti.o"
+"robot_hut_bui\stm32f1xx_hal_uart.o"
+"robot_hut_bui\system_stm32f1xx.o"
+"robot_hut_bui\motor.o"
+"robot_hut_bui\response.o"
+"robot_hut_bui\uart.o"
+"robot_hut_bui\robot.o"
+--strict --scatter "Robot_Hut_Bui\Robot_Hut_Bui.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "Robot_Hut_Bui.map" -o Robot_Hut_Bui\Robot_Hut_Bui.axf
