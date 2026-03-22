@@ -4,15 +4,13 @@
 #include "stm32f1xx.h"
 #include "Motor.h"
 
-typedef enum
-{
+typedef enum{
 	ROBOT_STOP,
 	ROBOT_RUN,
 	INVALID
 } Robot_State;
 
-typedef struct
-{
+typedef struct{
 	Motor_TypeDef *motorLeft;
 	Motor_TypeDef *motorRight;
 	float v_left;
@@ -22,5 +20,4 @@ typedef struct
 
 void robot_init(Robot_Typedef *robot, Motor_TypeDef *_motorLeft, Motor_TypeDef *_motorRight);
 void robot_control(Robot_Typedef *robot, float speed_left, float speed_right);
-void Calculate_Velocity(Robot_Typedef *robot);
 #endif
