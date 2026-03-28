@@ -24,6 +24,11 @@
 #include "Motor.h"
 #include "robot.h"
 #include "uart.h"
+#include "i2c.h"
+#include "distance_sensor.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,7 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BUFFER_MESSAGE_SIZE 356
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,12 +48,18 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 Motor_TypeDef motor_left, motor_right;
 Robot_Typedef robot;
+
+Soft_I2C_TypeDef i2c_front, i2c_left, i2c_right;
+VL53L0X_TypeDef distance_sensor_front, distance_sensor_left, distance_sensor_right;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +67,9 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_USART3_UART_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -63,10 +77,23 @@ static void MX_USART2_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint8_t data_rx;
+uint8_t flag = 0;
+uint8_t idx = 0;
+char buffer[BUFFER_MESSAGE_SIZE];
+
+HAL_StatusTypeDef transmit(const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	vsnprintf(buffer, BUFFER_MESSAGE_SIZE, format, args);
+	va_end(args);
+	return HAL_UART_Transmit_DMA(&huart2, (uint8_t *)buffer, strlen(buffer));
+}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart){
 	if(huart->Instance == USART2){
 		uart_receive_data(data_rx);
+		uart_handle(&robot);
 		HAL_UART_Receive_IT(huart, &data_rx, 1);
 	}
 }
@@ -103,7 +130,30 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
+  MX_TIM2_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+	/* initialize i2c soft */
+	i2c_soft_init(&i2c_front, VL53L0X_Front_SCL_GPIO_Port, VL53L0X_Front_SCL_Pin, VL53L0X_Front_SDA_GPIO_Port, VL53L0X_Front_SDA_Pin);
+	i2c_soft_init(&i2c_left, VL53L0X_Left_SCL_GPIO_Port, VL53L0X_Left_SCL_Pin, VL53L0X_Left_SDA_GPIO_Port, VL53L0X_Left_SDA_Pin);
+	i2c_soft_init(&i2c_right, VL53L0X_Right_SCL_GPIO_Port, VL53L0X_Right_SCL_Pin, VL53L0X_Right_SDA_GPIO_Port, VL53L0X_Right_SDA_Pin);
+	
+	/* initialize distance sensor vl53l0x */
+	if(!vl53l0x_init(&distance_sensor_front, &i2c_front, VL53L0X_Right_XHSUT_GPIO_Port, VL53L0X_Right_XHSUT_Pin, FRONT, 0)){
+		transmit("Distance Sensor Front Init Fail!\n");
+		Error_Handler();
+	}
+	if(!vl53l0x_init(&distance_sensor_left, &i2c_left, VL53L0X_Left_XHSUT_GPIO_Port, VL53L0X_Left_XHSUT_Pin, LEFT, 0)){
+		transmit("Distance Sensor Left Init Fail!\n");
+		Error_Handler();
+	}
+	if(!vl53l0x_init(&distance_sensor_right, &i2c_right, VL53L0X_Right_XHSUT_GPIO_Port, VL53L0X_Right_XHSUT_Pin, RIGHT, 0)){
+		transmit("Distance Sensor Right Init Fail!\n");
+		Error_Handler();
+	}
+	
+	/* initialize motor and robot */
 	motor_init(&motor_left, MOTOR_LEFT_IN1_GPIO_Port, MOTOR_LEFT_IN1_Pin, &htim1, TIM_CHANNEL_1);
 	motor_init(&motor_right, MOTOR_RIGHT_IN1_GPIO_Port, MOTOR_RIGHT_IN1_Pin, &htim1, TIM_CHANNEL_2);
 	robot_init(&robot, &motor_left, &motor_right);
@@ -113,7 +163,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  uart_handle(&robot);
+		if (!vl53l0x_read_all_sensor()){
+			flag = 12;
+			if (list_sensor[idx] != NULL){
+				if (list_sensor[idx]->state != VL53L0X_OK){
+					if (list_sensor[idx]->position == RIGHT)
+						transmit("Distane Sensor Front Right Get Data Error!\n");
+					else if (list_sensor[idx]->position == LEFT)
+						transmit("Distance Sensor Front Left Get Data Error!\n");
+					else if (list_sensor[idx]->position == FRONT)
+						transmit("Distance Sensor Front Get Data Error!\n");
+				}
+				idx = (idx + 1) % NUMS_SENSOR;
+				}
+			Error_Handler();
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -230,6 +294,104 @@ static void MX_TIM1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 65535;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 65535;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim4, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -263,6 +425,39 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -275,29 +470,51 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MOTOR_RIGHT_IN1_GPIO_Port, MOTOR_RIGHT_IN1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, Relay_Hut_Pin|Relay_Quet_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MOTOR_LEFT_IN1_GPIO_Port, MOTOR_LEFT_IN1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, VL53L0X_Right_XHSUT_Pin|MOTOR_LEFT_IN1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : MOTOR_RIGHT_IN1_Pin */
-  GPIO_InitStruct.Pin = MOTOR_RIGHT_IN1_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, VL53L0X_Right_SCL_Pin|VL53L0X_Right_SDA_Pin|VL53L0X_Left_XHSUT_Pin|VL53L0X_Left_SCL_Pin
+                          |VL53L0X_Left_SDA_Pin|MOTOR_RIGHT_IN1_Pin|VL53L0X_Front_XHSUT_Pin|VL53L0X_Front_SCL_Pin
+                          |VL53L0X_Front_SDA_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : Relay_Hut_Pin Relay_Quet_Pin */
+  GPIO_InitStruct.Pin = Relay_Hut_Pin|Relay_Quet_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(MOTOR_RIGHT_IN1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : MOTOR_LEFT_IN1_Pin */
-  GPIO_InitStruct.Pin = MOTOR_LEFT_IN1_Pin;
+  /*Configure GPIO pins : VL53L0X_Right_XHSUT_Pin MOTOR_LEFT_IN1_Pin */
+  GPIO_InitStruct.Pin = VL53L0X_Right_XHSUT_Pin|MOTOR_LEFT_IN1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(MOTOR_LEFT_IN1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : VL53L0X_Right_SCL_Pin VL53L0X_Right_SDA_Pin VL53L0X_Left_SCL_Pin VL53L0X_Left_SDA_Pin
+                           VL53L0X_Front_SCL_Pin VL53L0X_Front_SDA_Pin */
+  GPIO_InitStruct.Pin = VL53L0X_Right_SCL_Pin|VL53L0X_Right_SDA_Pin|VL53L0X_Left_SCL_Pin|VL53L0X_Left_SDA_Pin
+                          |VL53L0X_Front_SCL_Pin|VL53L0X_Front_SDA_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : VL53L0X_Left_XHSUT_Pin MOTOR_RIGHT_IN1_Pin VL53L0X_Front_XHSUT_Pin */
+  GPIO_InitStruct.Pin = VL53L0X_Left_XHSUT_Pin|MOTOR_RIGHT_IN1_Pin|VL53L0X_Front_XHSUT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../Motor;../UART;../Robot</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../Motor;../UART;../Robot;..\I2C_Soft;..\Distance_Sensor</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -528,6 +528,26 @@
               <FileName>robot.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Robot\robot.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>I2C_Soft</GroupName>
+          <Files>
+            <File>
+              <FileName>soft_i2c.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\I2C_Soft\soft_i2c.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Distance_Sensor</GroupName>
+          <Files>
+            <File>
+              <FileName>distance_sensor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Distance_Sensor\distance_sensor.c</FilePath>
             </File>
           </Files>
         </Group>

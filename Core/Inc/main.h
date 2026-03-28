@@ -59,10 +59,44 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define Relay_Hut_Pin GPIO_PIN_13
+#define Relay_Hut_GPIO_Port GPIOC
+#define Relay_Quet_Pin GPIO_PIN_14
+#define Relay_Quet_GPIO_Port GPIOC
+#define Encoder_B_Motor1_Pin GPIO_PIN_0
+#define Encoder_B_Motor1_GPIO_Port GPIOA
+#define Encoder_A_Motor1_Pin GPIO_PIN_1
+#define Encoder_A_Motor1_GPIO_Port GPIOA
+#define VL53L0X_Right_XHSUT_Pin GPIO_PIN_7
+#define VL53L0X_Right_XHSUT_GPIO_Port GPIOA
+#define VL53L0X_Right_SCL_Pin GPIO_PIN_0
+#define VL53L0X_Right_SCL_GPIO_Port GPIOB
+#define VL53L0X_Right_SDA_Pin GPIO_PIN_1
+#define VL53L0X_Right_SDA_GPIO_Port GPIOB
+#define VL53L0X_Left_XHSUT_Pin GPIO_PIN_12
+#define VL53L0X_Left_XHSUT_GPIO_Port GPIOB
+#define VL53L0X_Left_SCL_Pin GPIO_PIN_13
+#define VL53L0X_Left_SCL_GPIO_Port GPIOB
+#define VL53L0X_Left_SDA_Pin GPIO_PIN_14
+#define VL53L0X_Left_SDA_GPIO_Port GPIOB
 #define MOTOR_RIGHT_IN1_Pin GPIO_PIN_15
 #define MOTOR_RIGHT_IN1_GPIO_Port GPIOB
+#define PWM_Motor_2_Pin GPIO_PIN_8
+#define PWM_Motor_2_GPIO_Port GPIOA
+#define PWM_Motor_1_Pin GPIO_PIN_9
+#define PWM_Motor_1_GPIO_Port GPIOA
 #define MOTOR_LEFT_IN1_Pin GPIO_PIN_10
 #define MOTOR_LEFT_IN1_GPIO_Port GPIOA
+#define VL53L0X_Front_XHSUT_Pin GPIO_PIN_3
+#define VL53L0X_Front_XHSUT_GPIO_Port GPIOB
+#define VL53L0X_Front_SCL_Pin GPIO_PIN_4
+#define VL53L0X_Front_SCL_GPIO_Port GPIOB
+#define VL53L0X_Front_SDA_Pin GPIO_PIN_5
+#define VL53L0X_Front_SDA_GPIO_Port GPIOB
+#define Encoder_B_Motor2_Pin GPIO_PIN_6
+#define Encoder_B_Motor2_GPIO_Port GPIOB
+#define Encoder_A_Motor2_Pin GPIO_PIN_7
+#define Encoder_A_Motor2_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
