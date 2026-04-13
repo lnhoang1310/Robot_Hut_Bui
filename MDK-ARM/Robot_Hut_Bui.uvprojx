@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../Motor;../UART;../Robot;..\I2C_Soft;..\Distance_Sensor</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../Motor;../UART;../Robot;../I2C_Soft;../Distance_Sensor;../PID</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -548,6 +548,16 @@
               <FileName>distance_sensor.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Distance_Sensor\distance_sensor.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>PID</GroupName>
+          <Files>
+            <File>
+              <FileName>pid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PID\pid.c</FilePath>
             </File>
           </Files>
         </Group>

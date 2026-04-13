@@ -29,5 +29,6 @@ robot_hut_bui\robot.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 robot_hut_bui\robot.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 robot_hut_bui\robot.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 robot_hut_bui\robot.o: ../Motor/Motor.h
+robot_hut_bui\robot.o: ../PID/pid.h
 robot_hut_bui\robot.o: ../Core/Inc/main.h
 robot_hut_bui\robot.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h

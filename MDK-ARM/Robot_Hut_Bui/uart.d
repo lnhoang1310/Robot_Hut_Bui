@@ -30,6 +30,7 @@ robot_hut_bui\uart.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 robot_hut_bui\uart.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
 robot_hut_bui\uart.o: ../Robot/robot.h
 robot_hut_bui\uart.o: ../Motor/Motor.h
+robot_hut_bui\uart.o: ../PID/pid.h
 robot_hut_bui\uart.o: ..\UART\response.h
 robot_hut_bui\uart.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 robot_hut_bui\uart.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h

@@ -29,4 +29,4 @@ robot_hut_bui\distance_sensor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_h
 robot_hut_bui\distance_sensor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 robot_hut_bui\distance_sensor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 robot_hut_bui\distance_sensor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
-robot_hut_bui\distance_sensor.o: ..\I2C_Soft\i2c.h
+robot_hut_bui\distance_sensor.o: ../I2C_Soft/i2c.h

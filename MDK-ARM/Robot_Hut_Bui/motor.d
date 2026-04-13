@@ -28,3 +28,4 @@ robot_hut_bui\motor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 robot_hut_bui\motor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 robot_hut_bui\motor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 robot_hut_bui\motor.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
+robot_hut_bui\motor.o: ../PID/pid.h

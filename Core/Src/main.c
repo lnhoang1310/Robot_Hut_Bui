@@ -38,7 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BUFFER_MESSAGE_SIZE 356
+#define BUFFER_MESSAGE_SIZE 256
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,14 +49,17 @@
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 Motor_TypeDef motor_left, motor_right;
 Robot_Typedef robot;
+
+pid_typedef pid_left, pid_right;
 
 Soft_I2C_TypeDef i2c_front, i2c_left, i2c_right;
 VL53L0X_TypeDef distance_sensor_front, distance_sensor_left, distance_sensor_right;
@@ -65,11 +68,12 @@ VL53L0X_TypeDef distance_sensor_front, distance_sensor_left, distance_sensor_rig
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_USART3_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -79,10 +83,10 @@ static void MX_TIM4_Init(void);
 uint8_t data_rx;
 uint8_t flag = 0;
 uint8_t idx = 0;
+volatile uint8_t count = 0;
 char buffer[BUFFER_MESSAGE_SIZE];
 
-HAL_StatusTypeDef transmit(const char *format, ...)
-{
+HAL_StatusTypeDef transmit(const char *format, ...){
 	va_list args;
 	va_start(args, format);
 	vsnprintf(buffer, BUFFER_MESSAGE_SIZE, format, args);
@@ -95,6 +99,21 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart){
 		uart_receive_data(data_rx);
 		uart_handle(&robot);
 		HAL_UART_Receive_IT(huart, &data_rx, 1);
+	}
+}
+
+void HAL_TIM_ElapsedCallback(TIM_HandleTypeDef* htim){
+	if(htim->Instance == htim3.Instance){
+		int16_t encoder_left = (int16_t)htim4.Instance->CNT >> 2;
+		htim4.Instance->CNT = 0;
+		int16_t encoder_right = (int16_t)htim2.Instance->CNT >> 2;
+		htim2.Instance->CNT = 0;
+		
+		
+		count++;
+		if(count == 4){
+			transmit("%.2f %.2f\n", robot.v_left, robot.v_right);
+		}
 	}
 }
 /* USER CODE END 0 */
@@ -128,11 +147,12 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
-  MX_USART3_UART_Init();
   MX_TIM2_Init();
   MX_TIM4_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 	/* initialize i2c soft */
 	i2c_soft_init(&i2c_front, VL53L0X_Front_SCL_GPIO_Port, VL53L0X_Front_SCL_Pin, VL53L0X_Front_SDA_GPIO_Port, VL53L0X_Front_SDA_Pin);
@@ -154,9 +174,14 @@ int main(void)
 	}
 	
 	/* initialize motor and robot */
-	motor_init(&motor_left, MOTOR_LEFT_IN1_GPIO_Port, MOTOR_LEFT_IN1_Pin, &htim1, TIM_CHANNEL_1);
-	motor_init(&motor_right, MOTOR_RIGHT_IN1_GPIO_Port, MOTOR_RIGHT_IN1_Pin, &htim1, TIM_CHANNEL_2);
+	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
+	pid_init(&pid_left, KP_LEFT, KI_LEFT, KD_LEFT, PID_OUTPUT_MIN, PID_OUTPUT_MAX, PID_SAMPLE_TIME);
+	pid_init(&pid_right, KP_RIGHT, KI_RIGHT, KD_RIGHT, PID_OUTPUT_MIN, PID_OUTPUT_MAX, PID_SAMPLE_TIME);
+	motor_init(&motor_left, &pid_left, Motor_Left_IN1_GPIO_Port, Motor_Left_IN1_Pin, Motor_Left_IN2_GPIO_Port, Motor_Left_IN2_Pin, &htim1, TIM_CHANNEL_1);
+	motor_init(&motor_right, &pid_right, Motor_Right_IN1_GPIO_Port, Motor_Right_IN1_Pin, Motor_Right_IN2_GPIO_Port, Motor_Right_IN2_Pin, &htim1, TIM_CHANNEL_2);
 	robot_init(&robot, &motor_left, &motor_right);
+	HAL_TIM_Base_Start_IT(&htim3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -343,6 +368,51 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 7199;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 99;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief TIM4 Initialization Function
   * @param None
   * @retval None
@@ -425,35 +495,18 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
-  * @brief USART3 Initialization Function
-  * @param None
-  * @retval None
+  * Enable DMA controller clock
   */
-static void MX_USART3_UART_Init(void)
+static void MX_DMA_Init(void)
 {
 
-  /* USER CODE BEGIN USART3_Init 0 */
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
-  /* USER CODE END USART3_Init 0 */
-
-  /* USER CODE BEGIN USART3_Init 1 */
-
-  /* USER CODE END USART3_Init 1 */
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART3_Init 2 */
-
-  /* USER CODE END USART3_Init 2 */
+  /* DMA interrupt init */
+  /* DMA1_Channel7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
 
 }
 
@@ -479,12 +532,12 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, Relay_Hut_Pin|Relay_Quet_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, VL53L0X_Right_XHSUT_Pin|MOTOR_LEFT_IN1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, Motor_Left_IN1_Pin|Motor_Left_IN2_Pin|Motor_Right_IN1_Pin|VL53L0X_Right_XHSUT_Pin
+                          |Motor_Right_IN2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, VL53L0X_Right_SCL_Pin|VL53L0X_Right_SDA_Pin|VL53L0X_Left_XHSUT_Pin|VL53L0X_Left_SCL_Pin
-                          |VL53L0X_Left_SDA_Pin|MOTOR_RIGHT_IN1_Pin|VL53L0X_Front_XHSUT_Pin|VL53L0X_Front_SCL_Pin
-                          |VL53L0X_Front_SDA_Pin, GPIO_PIN_RESET);
+                          |VL53L0X_Left_SDA_Pin|VL53L0X_Front_XHSUT_Pin|VL53L0X_Front_SCL_Pin|VL53L0X_Front_SDA_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : Relay_Hut_Pin Relay_Quet_Pin */
   GPIO_InitStruct.Pin = Relay_Hut_Pin|Relay_Quet_Pin;
@@ -493,8 +546,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : VL53L0X_Right_XHSUT_Pin MOTOR_LEFT_IN1_Pin */
-  GPIO_InitStruct.Pin = VL53L0X_Right_XHSUT_Pin|MOTOR_LEFT_IN1_Pin;
+  /*Configure GPIO pins : Motor_Left_IN1_Pin Motor_Left_IN2_Pin Motor_Right_IN1_Pin VL53L0X_Right_XHSUT_Pin
+                           Motor_Right_IN2_Pin */
+  GPIO_InitStruct.Pin = Motor_Left_IN1_Pin|Motor_Left_IN2_Pin|Motor_Right_IN1_Pin|VL53L0X_Right_XHSUT_Pin
+                          |Motor_Right_IN2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -509,8 +564,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : VL53L0X_Left_XHSUT_Pin MOTOR_RIGHT_IN1_Pin VL53L0X_Front_XHSUT_Pin */
-  GPIO_InitStruct.Pin = VL53L0X_Left_XHSUT_Pin|MOTOR_RIGHT_IN1_Pin|VL53L0X_Front_XHSUT_Pin;
+  /*Configure GPIO pins : VL53L0X_Left_XHSUT_Pin VL53L0X_Front_XHSUT_Pin */
+  GPIO_InitStruct.Pin = VL53L0X_Left_XHSUT_Pin|VL53L0X_Front_XHSUT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
